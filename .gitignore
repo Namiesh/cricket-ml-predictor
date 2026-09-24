@@ -24,7 +24,6 @@ data/raw/
 
 # Large processed datasets
 data/processed/training_data.csv
-data/processed/player_match_data.csv
 
 # Temporary files
 *.log
