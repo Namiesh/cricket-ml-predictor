@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Raw dataset
+data/raw/
+
+# Large processed datasets
+data/processed/training_data.csv
+data/processed/player_match_data.csv
+
+# Temporary files
+*.log
+*.tmp
+
+# Python cache
+.pytest_cache/
+
+# Local Streamlit
+.streamlit/secrets.toml
