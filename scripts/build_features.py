@@ -11,6 +11,23 @@ def build_features():
     print(f"Loading player-match data from: {input_path}")
     df = pd.read_csv(input_path)
 
+    # Opta Exact Stats Integration
+    opta_path = os.path.join(output_dir, "cricket_player_stats.xlsx")
+    opta_df = pd.read_excel(opta_path)
+    opta_df['player_clean'] = opta_df['Player Name'].astype(str).str.strip().str.lower()
+    df['player_clean'] = df['player'].astype(str).str.strip().str.lower()
+    
+    opta_sub = opta_df[['player_clean', 'Batting Strike Rate', 'Economy Rate', 'Total Balls Bowled', 'Wickets Taken']].copy()
+    opta_sub['Opta Bowling Strike Rate'] = np.where(
+        opta_sub['Wickets Taken'] > 0, 
+        opta_sub['Total Balls Bowled'] / opta_sub['Wickets Taken'], 
+        np.nan
+    )
+    opta_sub = opta_sub.drop_duplicates(subset=['player_clean'])
+    
+    df = pd.merge(df, opta_sub, on='player_clean', how='left')
+    df = df.drop(columns=['player_clean'])
+
     # Sort strictly chronologically by player and match_id to ensure strict temporal ordering
     df = df.sort_values(by=['player', 'match_id']).reset_index(drop=True)
 
@@ -55,21 +72,33 @@ def build_features():
     )
 
     df['career_strike_rate_before_match'] = np.where(
-        df['career_balls_before_match'] > 0,
-        ((df['career_runs_before_match'] / df['career_balls_before_match']) * 100.0).round(2),
-        0.0
+        df['Batting Strike Rate'].notna(),
+        df['Batting Strike Rate'],
+        np.where(
+            df['career_balls_before_match'] > 0,
+            ((df['career_runs_before_match'] / df['career_balls_before_match']) * 100.0).round(2),
+            0.0
+        )
     )
 
     df['career_economy_before_match'] = np.where(
-        df['career_deliveries_before_match'] > 0,
-        ((df['career_bowling_runs_before_match'] / (df['career_deliveries_before_match'] / 6.0))).round(2),
-        0.0
+        df['Economy Rate'].notna(),
+        df['Economy Rate'],
+        np.where(
+            df['career_deliveries_before_match'] > 0,
+            ((df['career_bowling_runs_before_match'] / (df['career_deliveries_before_match'] / 6.0))).round(2),
+            0.0
+        )
     )
 
     df['career_bowling_strike_rate_before_match'] = np.where(
-        df['career_wickets_before_match'] > 0,
-        (df['career_deliveries_before_match'] / df['career_wickets_before_match']).round(2),
-        np.nan
+        df['Opta Bowling Strike Rate'].notna(),
+        df['Opta Bowling Strike Rate'],
+        np.where(
+            df['career_wickets_before_match'] > 0,
+            (df['career_deliveries_before_match'] / df['career_wickets_before_match']).round(2),
+            np.nan
+        )
     )
 
     # Rolling Batting Form over previous BATTING matches

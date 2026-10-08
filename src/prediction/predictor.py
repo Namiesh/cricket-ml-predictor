@@ -62,7 +62,17 @@ class CricketPredictor:
         self.df_pm['player'] = self.df_pm['player'].astype(str).str.strip().str.lower()
         self.known_players = set(self.df_pm['player'].unique())
 
-    def reconstruct_features(self, player_history):
+        opta_path = os.path.join(base_dir, "data", "processed", "cricket_player_stats.xlsx")
+        self.opta_df = pd.read_excel(opta_path)
+        self.opta_df['player_clean'] = self.opta_df['Player Name'].astype(str).str.strip().str.lower()
+        self.opta_df['Opta Bowling Strike Rate'] = np.where(
+            self.opta_df['Wickets Taken'] > 0, 
+            self.opta_df['Total Balls Bowled'] / self.opta_df['Wickets Taken'], 
+            np.nan
+        )
+        self.opta_df = self.opta_df.drop_duplicates(subset=['player_clean']).set_index('player_clean')
+
+    def reconstruct_features(self, player_history, player_name):
         """
         Reconstruct the exact 31 historical features from a player's match history DataFrame.
         """
@@ -72,6 +82,10 @@ class CricketPredictor:
 
         has_batting = len(batting_df) > 0
         has_bowling = len(bowling_df) > 0
+        
+        opta_stats = {}
+        if player_name in self.opta_df.index:
+            opta_stats = self.opta_df.loc[player_name]
 
         # Career Batting
         prev_bat_m = len(batting_df)
@@ -81,7 +95,10 @@ class CricketPredictor:
         c_bound = int(batting_df['batting_boundaries'].sum()) if has_batting else 0
 
         c_avg = round(c_runs / c_dism, 2) if c_dism > 0 else float(c_runs)
-        c_sr = round((c_runs / c_balls) * 100.0, 2) if c_balls > 0 else 0.0
+        if pd.notna(opta_stats.get('Batting Strike Rate')):
+            c_sr = float(opta_stats['Batting Strike Rate'])
+        else:
+            c_sr = round((c_runs / c_balls) * 100.0, 2) if c_balls > 0 else 0.0
 
         # Rolling Batting (last 3, 5, 10 batting matches)
         r_bat_stats = {}
@@ -106,8 +123,15 @@ class CricketPredictor:
         c_bruns = int(bowling_df['bowling_runs_conceded_approx'].sum()) if has_bowling else 0
         c_deliv = int(bowling_df['bowling_deliveries'].sum()) if has_bowling else 0
 
-        c_econ = round(c_bruns / (c_deliv / 6.0), 2) if c_deliv > 0 else 0.0
-        c_bsr = round(c_deliv / c_wick, 2) if c_wick > 0 else np.nan
+        if pd.notna(opta_stats.get('Economy Rate')):
+            c_econ = float(opta_stats['Economy Rate'])
+        else:
+            c_econ = round(c_bruns / (c_deliv / 6.0), 2) if c_deliv > 0 else 0.0
+            
+        if pd.notna(opta_stats.get('Opta Bowling Strike Rate')):
+            c_bsr = float(opta_stats['Opta Bowling Strike Rate'])
+        else:
+            c_bsr = round(c_deliv / c_wick, 2) if c_wick > 0 else np.nan
 
         # Rolling Bowling (last 3, 5, 10 bowling matches)
         r_bowl_stats = {}
@@ -197,7 +221,7 @@ class CricketPredictor:
             }
 
         prediction_point_m_id = player_history['match_id'].max()
-        X, has_batting, has_bowling = self.reconstruct_features(player_history)
+        X, has_batting, has_bowling = self.reconstruct_features(player_history, clean_name)
 
         # Generate predictions per target
         raw_preds = {}
