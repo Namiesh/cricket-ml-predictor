@@ -56,6 +56,14 @@ def main():
 
     predict_btn = st.sidebar.button("🔮 Generate Predictions", type="primary", use_container_width=True)
 
+    st.sidebar.divider()
+    st.sidebar.subheader("xPoints scoring")
+    st.sidebar.caption("Editable base scoring assumptions; adjust to match your fantasy platform.")
+    points_per_run = st.sidebar.number_input("Points per run", min_value=0.0, value=1.0, step=0.5)
+    four_bonus = st.sidebar.number_input("Bonus per four", min_value=0.0, value=1.0, step=0.5)
+    six_bonus = st.sidebar.number_input("Bonus per six", min_value=0.0, value=2.0, step=0.5)
+    wicket_points = st.sidebar.number_input("Points per wicket", min_value=0.0, value=25.0, step=1.0)
+
     # Main Dashboard Content
     if selected_player:
         st.header(f"Player Dashboard: {selected_player.title()}")
@@ -90,6 +98,26 @@ def main():
             if not has_batting and not has_bowling:
                 st.warning(f"Player '{selected_player.title()}' has insufficient historical records for predictions.")
                 st.stop()
+
+            # Expected fantasy points from the model's run/wicket projections.
+            # Boundary frequencies come from the player's latest ten batting matches.
+            batting = res.get("batting", {})
+            bowling = res.get("bowling", {})
+            exp_runs = batting.get("expected_runs", 0.0)
+            exp_fours = batting.get("expected_fours", 0.0)
+            exp_sixes = batting.get("expected_sixes", 0.0)
+            exp_wickets = bowling.get("x_wickets", 0.0)
+            xpoints = (exp_runs * points_per_run + exp_fours * four_bonus
+                       + exp_sixes * six_bonus + exp_wickets * wicket_points)
+            st.subheader("⭐ Expected Fantasy Points (xPoints)")
+            st.metric("Projected xPoints", f"{xpoints:.1f}")
+            st.caption(
+                f"Runs: {exp_runs * points_per_run:.1f} · Fours: {exp_fours * four_bonus:.1f} · "
+                f"Sixes: {exp_sixes * six_bonus:.1f} · Wickets: {exp_wickets * wicket_points:.1f}. "
+                "Boundary counts are estimated by scaling the player's last 10 batting matches "
+                "to projected runs. Catches, run-outs, strike-rate/economy bonuses, and dismissal penalties "
+                "are omitted because this dataset does not support them."
+            )
 
             # 1. BATTING PREDICTIONS
             if has_batting:
@@ -134,8 +162,9 @@ def main():
 
             # Disclaimer
             st.caption(
-                "⚠️ **Disclaimer:** Predictions are statistical estimates based on historical data "
-                "and should not be treated as guaranteed outcomes."
+                "⚠️ **Disclaimer:** xPoints depends on the editable scoring values in the sidebar and is "
+                "an estimate, not a calibrated fantasy outcome. The available data does not identify match "
+                "format or platform-specific rules."
             )
 
     st.divider()
@@ -149,3 +178,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
