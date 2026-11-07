@@ -43,6 +43,14 @@ An end-to-end Machine Learning Prediction Engine designed to forecast individual
 python scripts/test_prediction_engine.py
 ```
 
+## Expected Fantasy Points (xPoints)
+
+The Streamlit dashboard reports a configurable expected fantasy-points estimate alongside its player projections. It combines the model's expected runs and wickets with editable point values for runs, fours, sixes, and wickets. Expected fours and sixes are estimated from the player's most recent 10 batting matches by scaling observed boundary counts to the projected run total.
+
+The sidebar defaults are example scoring assumptions, not a claim about any specific fantasy platform. Set them to the platform's scoring table. Catches, run-outs, strike-rate/economy bonuses, dismissal penalties, match format, and role/participation bonuses are not included because the available dataset does not provide the required information. This estimate inherits the uncertainty of the underlying performance models.
+
+The rolling team xR/xRC scoring-share equation is a separate team-level metric and is not used as a player fantasy-points score.
+
 ### 2. Predict Performance for a Single Player
 ```bash
 python scripts/predict_players.py --player "da warner"
@@ -76,3 +84,4 @@ pred_hist = predictor.predict_player_for_match("v kohli", match_id=1082591)
 - **Match-Level Variance:** Single-match outcomes in cricket have high intrinsic variance.
 - **Unsegmented Extras/Dismissals:** Wides/no-balls and run-outs/bowler-wickets are aggregated in the raw source dataset, making strike rates and bowler wickets defensible approximations.
 - **Non-Negativity Clipping:** Model predictions are raw regression values; post-processing applies physical non-negativity bounds ($\ge 0.0$).
+
