@@ -241,11 +241,21 @@ class CricketPredictor:
         }
 
         if has_batting:
+            # Estimate boundary counts from the player's recent observed boundary mix.
+            # These are expected values and can be fractional by design.
+            batting_history = player_history[player_history['batting_matches'] == 1].tail(10)
+            recent_runs = float(batting_history['batting_runs'].sum())
+            recent_fours = float(batting_history['batting_fours'].sum())
+            recent_sixes = float(batting_history['batting_sixes'].sum())
+            boundary_scale = max(0.0, raw_preds['target_runs']) / recent_runs if recent_runs > 0 else 0.0
             res["batting"] = {
                 "expected_runs": round(max(0.0, raw_preds['target_runs']), 1),
                 "x_batting_average": round(max(0.0, raw_preds['target_batting_average']), 1),
                 "x_strike_rate": round(max(0.0, raw_preds['target_strike_rate']), 1),
                 "x_balls_per_boundary": round(max(0.0, raw_preds['target_balls_per_boundary']), 1),
+                "expected_fours": round(recent_fours * boundary_scale, 2),
+                "expected_sixes": round(recent_sixes * boundary_scale, 2),
+                "boundary_history_matches": len(batting_history),
             }
         else:
             res["batting"] = {
@@ -254,10 +264,12 @@ class CricketPredictor:
             }
 
         if has_bowling:
+            bowling_history = player_history[player_history['bowling_matches'] == 1].tail(10)
             res["bowling"] = {
                 "x_wickets": round(max(0.0, raw_preds['target_wickets']), 1),
                 "x_economy_rate": round(max(0.0, raw_preds['target_economy_rate']), 1),
                 "x_bowling_strike_rate": round(max(0.0, raw_preds['target_bowling_strike_rate']), 1),
+                "bowling_history_matches": len(bowling_history),
             }
         else:
             res["bowling"] = {
@@ -290,3 +302,4 @@ class CricketPredictor:
             if res.get("status") == "success" and res.get("historical_matches_used", 0) >= min_matches:
                 results.append(res)
         return results
+
